@@ -11,8 +11,36 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <time.h>
+struct tms {
+	clock_t tms_utime;
+	clock_t tms_stime;
+	clock_t tms_cutime;
+	clock_t tms_cstime;
+};
+#define _SC_CLK_TCK 0
+static long sysconf(int name)
+{
+	(void)name;
+	return 1000;
+}
+static clock_t times(struct tms *buf)
+{
+	clock_t ticks = (clock_t)GetTickCount64();
+	if (buf) {
+		buf->tms_utime = ticks;
+		buf->tms_stime = 0;
+		buf->tms_cutime = 0;
+		buf->tms_cstime = 0;
+	}
+	return ticks;
+}
+#else
 #include <unistd.h> /* sysconf() */
 #include <sys/times.h>
+#endif
 #include <assert.h>
 
 #if defined(__MIC__) || defined(__AVX512F__)
