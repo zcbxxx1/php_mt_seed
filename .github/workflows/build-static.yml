@@ -1,0 +1,65 @@
+name: build-static-binaries
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            musl-tools \
+            gcc-mingw-w64-x86-64-posix
+
+      - name: Create output directory
+        run: mkdir -p dist
+
+      - name: Build static Linux x86_64 binary
+        run: |
+          musl-gcc \
+            -O2 -pipe -fomit-frame-pointer -funroll-loops -fopenmp -static \
+            php_mt_seed.c \
+            -o dist/php_mt_seed-linux-x86_64
+          strip dist/php_mt_seed-linux-x86_64
+          file dist/php_mt_seed-linux-x86_64
+
+      - name: Build static Windows x86_64 binary
+        run: |
+          x86_64-w64-mingw32-gcc-posix \
+            -O2 -pipe -fomit-frame-pointer -funroll-loops -fopenmp \
+            -static -static-libgcc \
+            php_mt_seed.c \
+            -o dist/php_mt_seed-win-x86_64.exe
+          x86_64-w64-mingw32-strip dist/php_mt_seed-win-x86_64.exe
+          file dist/php_mt_seed-win-x86_64.exe
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: php_mt_seed-static-binaries
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
