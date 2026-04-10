@@ -26,7 +26,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
-            file \
             musl-tools
 
       - name: Create output directory
@@ -39,7 +38,7 @@ jobs:
             php_mt_seed.c \
             -o dist/php_mt_seed-linux-x86_64
           strip dist/php_mt_seed-linux-x86_64
-          file dist/php_mt_seed-linux-x86_64
+          ls -l dist/php_mt_seed-linux-x86_64
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -78,7 +77,7 @@ jobs:
             php_mt_seed.c \
             -o dist/php_mt_seed-win-x86_64.exe
           strip dist/php_mt_seed-win-x86_64.exe
-          file dist/php_mt_seed-win-x86_64.exe
+          ls -l dist/php_mt_seed-win-x86_64.exe
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
