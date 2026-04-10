@@ -13,7 +13,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-linux:
+    name: build-linux
     runs-on: ubuntu-latest
 
     steps:
@@ -25,8 +26,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
-            musl-tools \
-            gcc-mingw-w64-x86-64-posix
+            file \
+            musl-tools
 
       - name: Create output directory
         run: mkdir -p dist
@@ -40,25 +41,69 @@ jobs:
           strip dist/php_mt_seed-linux-x86_64
           file dist/php_mt_seed-linux-x86_64
 
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php_mt_seed-linux-x86_64
+          path: dist/php_mt_seed-linux-x86_64
+          if-no-files-found: error
+
+  build-windows:
+    name: build-windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+
+      - name: Create output directory
+        shell: msys2 {0}
+        run: mkdir -p dist
+
       - name: Build static Windows x86_64 binary
+        shell: msys2 {0}
         run: |
-          x86_64-w64-mingw32-gcc-posix \
+          gcc \
             -O2 -pipe -fomit-frame-pointer -funroll-loops \
             -static -static-libgcc \
             php_mt_seed.c \
             -o dist/php_mt_seed-win-x86_64.exe
-          x86_64-w64-mingw32-strip dist/php_mt_seed-win-x86_64.exe
+          strip dist/php_mt_seed-win-x86_64.exe
           file dist/php_mt_seed-win-x86_64.exe
 
-      - name: Upload build artifacts
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: php_mt_seed-static-binaries
-          path: dist/*
+          name: php_mt_seed-win-x86_64
+          path: dist/php_mt_seed-win-x86_64.exe
           if-no-files-found: error
 
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build-linux
+      - build-windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: php_mt_seed-*
+          merge-multiple: true
+          path: dist
+
       - name: Publish release assets
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
